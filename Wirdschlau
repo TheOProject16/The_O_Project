@@ -1,158 +1,385 @@
 <!doctype html>
 <html lang="de">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Flashkarten-Quiz: Fahrräder</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The O Projekt – Theo wird schlau (offline)</title>
 <style>
-  body { font-family: Arial, sans-serif; background:#f7fafc; margin:0; padding:20px; }
-  .wrap { max-width:800px; margin:auto; }
-  .card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.12); margin-top:20px; }
-  .q { font-weight:bold; margin-bottom:12px; }
-  .options { display:grid; gap:8px; }
-  .opt { border:1px solid #ddd; padding:10px; border-radius:8px; cursor:pointer; background:#fafafa; }
-  .opt:hover { background:#eef; }
-  .opt.correct { border-color:green; background:#e6ffe6; }
-  .opt.incorrect { border-color:red; background:#ffe6e6; }
-  .controls { margin-top:14px; display:flex; justify-content:space-between; }
-  button { padding:8px 14px; border:none; border-radius:8px; cursor:pointer; }
-  .btn { background:#2563eb; color:#fff; }
-  .btn.secondary { background:#ddd; color:#000; }
-  .status { margin-top:10px; font-size:.9rem; color:#444; }
+  :root{
+    --bg:#f5f7f9; --fg:#111827; --muted:#4b5563; --card:#ffffff;
+    --accent:#2563eb; --ok:#16a34a; --err:#dc2626; --shadow:0 10px 24px rgba(0,0,0,.12);
+    --claas-g1:#8DC63F; --claas-g2:#6AA528; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+  .wrap{max-width:1100px;margin:28px auto;padding:0 16px}
+  header{margin-bottom:16px}
+  h1{margin:0 0 6px;font-size:2rem;letter-spacing:.5px;font-weight:900;text-transform:uppercase}
+  h2{margin:.5rem 0 0}
+  .lead{color:var(--muted);margin:0 0 10px}
+  .grid{display:grid;gap:16px}
+  @media(min-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .pill{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:999px;padding:6px 10px;font-weight:800}
+  .muted{color:var(--muted)}
+  button{border:0;border-radius:12px;padding:12px 14px;font-weight:800;cursor:pointer}
+  .btn{background:var(--accent);color:#fff}
+  .btn.secondary{background:#e5e7eb;color:#111827}
+  .btn.ghost{background:transparent;color:var(--accent)}
+  .statusline{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 0}
+  .divider{height:1px;background:#e5e7eb;margin:12px 0}
+  .center{text-align:center}
+  .big{font-size:1.15rem}
+  .hidden{display:none !important}
+  ul.clean{margin:0;padding-left:18px}
+
+  /* Startseite – CLAAS-Look Topic Tiles (offline) */
+  .topic{
+    display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:16px;
+    color:#fff;box-shadow:var(--shadow);position:relative;overflow:hidden;
+    background:linear-gradient(135deg,var(--claas-g1),var(--claas-g2));
+  }
+  .topic h3{
+    margin:0;font-size:1.2rem;letter-spacing:.3px;font-weight:900;text-transform:uppercase
+  }
+  .topic .sub{opacity:.95}
+  .topic .cta{align-self:flex-start;background:#fff;color:#1b3b0b}
+  .topic.locked{opacity:.55;filter:saturate(.75);pointer-events:none}
+  .badge-lock{
+    position:absolute;top:12px;right:12px;background:rgba(255,255,255,.18);
+    padding:4px 8px;border-radius:999px;font-size:.85rem
+  }
+
+  /* Quiz */
+  .qbox{margin:10px 0;font-weight:800;font-size:1.1rem}
+  .options{display:grid;gap:10px;margin:10px 0}
+  .opt{border:2px solid #e5e7eb;padding:12px;border-radius:12px;background:#fff;cursor:pointer;transition:.15s}
+  .opt:hover{border-color:#cbd5e0;transform:translateY(-1px)}
+  .opt.selected{outline:3px solid rgba(37,99,235,.25)}
+  .opt.correct{border-color:var(--ok);background:#ecfdf5}
+  .opt.incorrect{border-color:var(--err);background:#fef2f2}
+  .progress{color:var(--muted);font-size:.95rem}
+
+  /* Mini-Lernkasten */
+  .learnbox{
+    background:#f0f7e9;border:1px solid #d4e7bf;border-radius:12px;padding:12px;margin:12px 0 6px;
+  }
+  .learnbox h3{ margin:0 0 6px; font-size:1rem; text-transform:uppercase; letter-spacing:.3px }
+  .learnbox ul{ margin:0; padding-left:18px }
+  .learnbox li{ margin:4px 0 }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Flashkarten-Quiz: Fahrräder</h1>
-  <p><strong>Infotext:</strong><br>
-  Das Fahrrad ist ein praktisches Verkehrsmittel. Es besteht aus zwei Rädern, Rahmen, Lenker, Pedalen und meist einer Kette. Mit den Pedalen bewegt man das Hinterrad. Viele Räder haben Gänge, die bergauf helfen oder auf gerader Strecke schneller machen. Fahrräder sind umweltfreundlich, da sie keinen Kraftstoff brauchen und keine Abgase erzeugen. Sie machen fit und Spaß. Kinder nutzen sie für Schule, Freunde oder Ausflüge. Wichtig für Sicherheit sind Helm, funktionierende Bremsen und Licht im Dunkeln.
-  </p>
+  <header>
+    <h1>The O Projekt – Theo wird schlau</h1>
+    <p class="lead">Wähle ein Thema, lies den Text (ca. 400–800 Zeichen) und beantworte 5 anspruchsvolle Fragen. Jede richtige Antwort bringt 1 Punkt. Jedes Thema ist nur einmal spielbar.</p>
+  </header>
 
-  <div class="card">
-    <div class="q" id="question"></div>
-    <div id="options" class="options"></div>
-    <div class="controls">
-      <button class="btn secondary" id="prevBtn">Zurück</button>
-      <button class="btn" id="nextBtn">Weiter</button>
+  <!-- HOME -->
+  <section id="home" class="card">
+    <div class="statusline">
+      <span class="pill" id="scoreBadge">Punkte: 0</span>
+      <span class="progress" id="progressText">0 / 5 Themen erledigt</span>
     </div>
-    <div class="status" id="status"></div>
-  </div>
+    <div class="divider"></div>
+    <div id="topics" class="grid"></div>
+    <div id="finishBox" class="hidden">
+      <div class="divider"></div>
+      <div class="center big" id="finalCongrats"></div>
+      <div class="divider"></div>
+      <div id="finalTable"></div>
+    </div>
+  </section>
+
+  <!-- TOPIC VIEW -->
+  <section id="topicView" class="card hidden">
+    <button class="btn ghost" id="backHome">⟵ Zur Startseite</button>
+    <h2 id="topicTitle" style="margin:.5rem 0 0;text-transform:uppercase;letter-spacing:.3px"></h2>
+    <p class="muted" id="topicIntro"></p>
+
+    <div class="learnbox" id="learnBox">
+      <h3>Mini-Lernkasten</h3>
+      <ul id="learnList"></ul>
+    </div>
+
+    <div class="center"><button class="btn" id="startQuiz">Quiz starten</button></div>
+  </section>
+
+  <!-- QUIZ VIEW -->
+  <section id="quizView" class="card hidden">
+    <div class="statusline">
+      <span class="pill" id="topicScoreBadge">Themenpunkte: 0/5</span>
+      <span class="progress" id="qProgress">Frage 1 / 5</span>
+    </div>
+    <div class="divider"></div>
+    <div class="qbox" id="questionText"></div>
+    <div id="optionsBox" class="options"></div>
+    <div class="statusline">
+      <button class="btn secondary" id="prevQ">Zurück</button>
+      <button class="btn" id="checkQ">Antwort prüfen</button>
+      <button class="btn secondary" id="nextQ">Weiter</button>
+    </div>
+    <p class="muted" id="feedback"></p>
+  </section>
 </div>
 
 <script>
-// --- Quizfragen ---
-let cards = [
+/* ======== DATEN ======== */
+/* Pro Thema: Intro (400–800 Zeichen), Mini-Lernkasten (2–3 Stichpunkte), 5 Fragen (anspruchsvoller, 4. Klasse). */
+const TOPICS = [
   {
-    q: "Welche Grundteile gehören zu einem Fahrrad?",
-    choices: [
-      "Zwei Räder, Lenker, Pedale, Rahmen",
-      "Motor, Tank, Auspuff",
-      "Fenster, Tür, Dach",
-      "Fernseher, Sofa, Lampe"
+    id:"biogas", title:"Biogasanlagen",
+    intro:`Biogasanlagen verwerten Pflanzenreste, Gülle oder Bioabfälle in luftdichten Fermentern. Bakterien bauen die Masse ohne Sauerstoff ab. Dabei entsteht ein Gas mit viel Methan. Dieses Biogas treibt Motoren an, die Strom und Wärme erzeugen. Übrig bleibt Gärrest, der als Dünger genutzt wird. Dichte Leitungen, Sicherheitsventile und regelmäßige Kontrollen verhindern Verluste und schützen die Umwelt.`,
+    learn:[
+      "Fermenter = luftdichter Behälter, Bakterien arbeiten ohne Sauerstoff.",
+      "Biogas enthält viel Methan → Energie für Strom & Wärme.",
+      "Gärrest ist kein Müll, sondern Dünger für Felder."
     ],
-    correct: 0
+    questions:[
+      { q:"Warum ist ein luftdichter Fermenter notwendig?",
+        opts:["Bakterien arbeiten ohne Sauerstoff (anaerob)","Damit es innen heller ist","Weil sonst Regen hineinläuft","Weil Sauerstoff das Gas bunt färbt"], a:0 },
+      { q:"Welche Reihenfolge ist korrekt?",
+        opts:["Biomasse → Fermenter → Biogas → Strom/Wärme","Biogas → Biomasse → Fermenter → Dünger","Fermenter → Dünger → Biomasse → Strom","Dünger → Biogas → Fermenter → Strom"], a:0 },
+      { q:"Welcher Anteil macht Biogas energiereich?",
+        opts:["Methan","Sauerstoff","Stickstoff","Kohlendioxid"], a:0 },
+      { q:"Warum schützen dichte Leitungen die Umwelt?",
+        opts:["Es entweicht kein Methan, ein starkes Klimagas","Weil sie schöner aussehen","Weil dann weniger gewogen wird","Weil dann mehr Farbe hält"], a:0 },
+      { q:"Was passiert mit dem Gärrest?",
+        opts:["Er wird als Dünger verwendet","Er wird verbrannt","Er wird zu Plastik gepresst","Er wird weggeschwemmt"], a:0 }
+    ]
   },
   {
-    q: "Wozu dienen die Gänge am Fahrrad?",
-    choices: [
-      "Zum Einschalten des Lichts",
-      "Zum leichteren Bergauffahren oder schneller Fahren auf der Ebene",
-      "Zum Bremsen",
-      "Zum Klingeln"
+    id:"claas", title:"Claas Traktoren",
+    intro:`Claas baut Traktoren mit großen Reifen für weichen Boden, kräftigen Motoren und Kabinen mit guter Sicht. GPS-Lenksysteme führen den Traktor sehr gerade, sparen Saatgut und Zeit. Die Hydraulik hebt und bewegt Geräte. Für sichere Straßenfahrten sind Blinker, Beleuchtung und Spiegel Pflicht. Auf dem Feld helfen Funk oder Handzeichen, damit Fahrer und Abfahrer sich verstehen.`,
+    learn:[
+      "Große/breite Reifen → weniger Bodendruck, besserer Halt.",
+      "GPS-Lenkung → gerade Spuren, weniger Überlappung.",
+      "Hydraulik → Kraft zum Heben/Bewegen von Geräten."
     ],
-    correct: 1
+    questions:[
+      { q:"Welchen praktischen Effekt hat GPS beim Säen?",
+        opts:["Spuren überlappen weniger, Arbeit wird genauer","Der Traktor wird leiser","Er fährt automatisch schneller in Kurven","Die Reifen kühlen ab"], a:0 },
+      { q:"Warum sind die Reifen so groß/breit?",
+        opts:["Weniger Einsinken in weichem Boden","Damit die Farbe besser wirkt","Damit er ins Wohnzimmer passt","Damit er auf Wasser schwimmt"], a:0 },
+      { q:"Wofür liefert die Hydraulik Leistung?",
+        opts:["Heben und Bewegen von Anbaugeräten","Musik abspielen","Sitzheizung betreiben","Luft im Reifen kühlen"], a:0 },
+      { q:"Was erhöht die Sicherheit auf der Straße am ehesten?",
+        opts:["Blinker, Licht, Spiegel prüfen","Nur hupen","Fenster offen lassen","Reifen pink anmalen"], a:0 },
+      { q:"Welche Vorbereitung passt vor Feldarbeit?",
+        opts:["Reifendruck anpassen, Steckverbindungen prüfen","Scheinwerfer bekleben","Lenkrad lackieren","Auspuff dekorieren"], a:0 }
+    ]
   },
   {
-    q: "Warum ist Radfahren umweltfreundlich?",
-    choices: [
-      "Weil Fahrräder bunt sind",
-      "Weil sie keinen Kraftstoff brauchen und keine Abgase erzeugen",
-      "Weil sie schweben können",
-      "Weil sie kleiner als Autos sind"
+    id:"farm", title:"Bauernhof",
+    intro:`Auf dem Bauernhof leben Tiere und wachsen Pflanzen. Kühe liefern Milch, Hühner Eier, Felder Mais oder Getreide. Ställe müssen sauber sein, Tiere brauchen täglich Futter und Wasser. Maschinen werden rechtzeitig gewartet. Über das Jahr planen Bauern: säen, pflegen, ernten, lagern. Da Hof und Arbeitsplatz oft derselbe Ort sind, haben Sicherheit, Ordnung und klare Abläufe Priorität.`,
+    learn:[
+      "Jahreslauf: Säen → Pflegen → Ernten → Lagern.",
+      "Gesunde Tiere brauchen saubere Ställe + frisches Wasser.",
+      "Wartung verhindert Ausfälle der Maschinen."
     ],
-    correct: 1
+    questions:[
+      { q:"Welche Reihenfolge passt zum Feldjahr?",
+        opts:["Säen → Pflegen → Ernten → Lagern","Ernten → Lagern → Säen → Pflegen","Lagern → Säen → Pflegen → Ernten","Pflegen → Säen → Ernten → Lagern"], a:0 },
+      { q:"Was hält Tiere zuverlässig gesund?",
+        opts:["Saubere Ställe und frisches Wasser","Laute Musik und buntes Licht","Dauerlicht in der Nacht","Selten füttern"], a:0 },
+      { q:"Warum ist Maschinenwartung wichtig?",
+        opts:["Zuverlässige Arbeit, weniger Ausfälle","Damit sie schwerer werden","Damit sie langsamer sind","Damit sie schmutzig bleiben"], a:0 },
+      { q:"Welche Aussage ist sachlich richtig?",
+        opts:["Hof = Wohn- und Arbeitsplatz → Ordnung & Sicherheit wichtig","Sicherheit ist nur im Winter nötig","Regeln gelten nur für Besucher","Ordnung stört die Tiere"], a:0 },
+      { q:"Sinnvolle Kontrolle vor der Fütterung?",
+        opts:["Saubere Tränken, Futtervorräte prüfen","Ob der Traktor blinkt","Ob die Scheune glänzt","Ob der Zaun bunt ist"], a:0 }
+    ]
   },
   {
-    q: "Wofür nutzen Kinder das Fahrrad häufig?",
-    choices: [
-      "Zum Hausaufgabenmachen",
-      "Zum Schwimmen",
-      "Um zur Schule zu fahren, Freunde zu besuchen oder Ausflüge zu machen",
-      "Zum Kochen"
+    id:"maize", title:"Maisernte",
+    intro:`Ein Feldhäcksler schneidet Maispflanzen und zerkleinert sie. Das Häckselgut fliegt in Anhänger, wird zum Hof gefahren und im Silo festgedrückt. Luftdicht abgedeckt entsteht Silage, die lange haltbar bleibt. Scharfe Messer, passende Geschwindigkeit und klare Zeichen zwischen Fahrer und Abfahrer verhindern Verluste und Unfälle. Auf der Straße sichern Beleuchtung und Abdeckplanen die Ladung.`,
+    learn:[
+      "Silage luftdicht → lange Haltbarkeit.",
+      "Scharfe Messer + passende Geschwindigkeit → weniger Verluste.",
+      "Beleuchtung & Planen → Sicherheit auf der Straße."
     ],
-    correct: 2
+    questions:[
+      { q:"Warum luftdicht abdecken?",
+        opts:["Damit Silage nicht verdirbt","Damit sie bunter aussieht","Damit sie friert","Damit sie lauter ist"], a:0 },
+      { q:"Was verhindert Ernteverluste am ehesten?",
+        opts:["Scharfe Messer, passende Geschwindigkeit","Planen offen lassen","Musik lauter drehen","Sehr weiche Reifen"], a:0 },
+      { q:"Direkt nach dem Häckseln passiert was?",
+        opts:["Häcksel wird in Anhänger geblasen","Pflanzen wachsen wieder an","Körner werden gemahlen","Alles wird sofort verkauft"], a:0 },
+      { q:"Welche Maßnahme passt zur Straßenfahrt?",
+        opts:["Beleuchtung prüfen, Anhänger abdecken","Fenster offen lassen","Hupen festkleben","Planen entfernen"], a:0 },
+      { q:"Wofür nutzt man Silage hauptsächlich?",
+        opts:["Tierfutter oder Biogasanlage","Zaunbau","Wasserbecken füllen","Schmuck basteln"], a:0 }
+    ]
   },
   {
-    q: "Was ist wichtig für die Sicherheit beim Radfahren?",
-    choices: [
-      "Helm tragen, Bremsen prüfen, Licht/Reflektoren nutzen",
-      "Nur bergab fahren",
-      "Ohne Hände lenken",
-      "Sehr laute Musik hören"
+    id:"lego", title:"Lego",
+    intro:`Lego-Steine besitzen Noppen und Röhren, die fest ineinandergreifen. So halten Modelle ohne Kleber. Anleitungen führen Schritt für Schritt, eigene Ideen sind genauso wichtig. Wer Achsen, Zahnräder und Motoren nutzt, bringt Teile in Bewegung. Sortiersysteme sparen Zeit, weil benötigte Steine schneller gefunden werden. Beim Bauen trainiert man Kreativität, räumliches Denken und Geduld.`,
+    learn:[
+      "Noppen + Röhren → Reibschluss, stabil ohne Kleber.",
+      "Achsen/Zahnräder/Motoren → bewegliche Modelle.",
+      "Sortieren → schneller finden, besser planen."
     ],
-    correct: 0
+    questions:[
+      { q:"Warum halten Lego-Modelle ohne Kleber?",
+        opts:["Noppen greifen in Röhren (Reibung)","Magnetkraft","Feuchtigkeit","Zauberei"], a:0 },
+      { q:"Welche Fähigkeit stärkt freies Bauen besonders?",
+        opts:["Räumliches Vorstellen & Planen","Sprintgeschwindigkeit","Hochsprung","Bruchrechnen"], a:0 },
+      { q:"Welche Teile sind für Bewegung geeignet?",
+        opts:["Achsen, Zahnräder, Motoren","Kissen und Decken","Papier und Stifte","Magnete und Klett"], a:0 },
+      { q:"Warum sind Sortierkästen praktisch?",
+        opts:["Teile schneller finden → zügiger bauen","Sie machen Modelle größer","Sie färben Steine um","Sie ersetzen Anleitungen"], a:0 },
+      { q:"Sinnvolles Arbeiten mit Anleitung heißt…",
+        opts:["Schrittweise bauen, Teile bereitlegen","Viele Schritte überspringen","Zufällig Steine greifen","Erst das Ende bauen"], a:0 }
+    ]
   }
 ];
 
-// --- Zufällige Reihenfolge (Shuffle) ---
-cards = cards
-  .map(value => ({ value, sort: Math.random() }))
-  .sort((a, b) => a.sort - b.sort)
-  .map(({ value }) => value);
+/* ======== STATE ======== */
+const state = {
+  totalScore: 0,
+  completed: {},       // {topicId:true}
+  perTopicScore: {},   // {topicId:number}
+  current: null,       // topic object
+  qIndex: 0,
+  selected: null
+};
 
-// --- State ---
-let idx = 0;
-let score = 0;
-let answered = Array(cards.length).fill(false);
+/* ======== HELPERS ======== */
+const $ = sel => document.querySelector(sel);
+function show(sel){ $(sel).classList.remove('hidden'); }
+function hide(sel){ $(sel).classList.add('hidden'); }
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }}
 
-// --- DOM ---
-const qEl = document.getElementById("question");
-const optionsEl = document.getElementById("options");
-const statusEl = document.getElementById("status");
+/* ======== HOME ======== */
+function renderHome(){
+  $('#scoreBadge').textContent = `Punkte: ${state.totalScore}`;
+  const done = Object.keys(state.completed).length;
+  $('#progressText').textContent = `${done} / ${TOPICS.length} Themen erledigt`;
 
-function renderCard() {
-  const c = cards[idx];
-  qEl.textContent = c.q;
-  optionsEl.innerHTML = "";
-  c.choices.forEach((choice, i) => {
-    const btn = document.createElement("div");
-    btn.textContent = choice;
-    btn.className = "opt";
-    btn.addEventListener("click", () => checkAnswer(btn, i));
-    optionsEl.appendChild(btn);
+  const box = $('#topics'); box.innerHTML="";
+  TOPICS.forEach(t=>{
+    const played = !!state.completed[t.id];
+    const tile = document.createElement('div');
+    tile.className = 'topic' + (played ? ' locked' : '');
+    tile.innerHTML = `
+      <span class="badge-lock">${played ? 'Erledigt' : 'Neu'}</span>
+      <h3>${t.title}</h3>
+      <div class="sub">Status: ${played ? `Punkte ${state.perTopicScore[t.id] ?? 0}/5` : 'Noch nicht gespielt'}</div>
+      <button class="cta btn">${played ? 'Schon gespielt' : 'Los geht’s'}</button>
+    `;
+    if(!played){
+      tile.querySelector('.cta').addEventListener('click',()=>openTopic(t));
+    }
+    box.appendChild(tile);
   });
-  statusEl.textContent = `Frage ${idx+1} von ${cards.length} | Punkte: ${score}`;
+
+  if(done === TOPICS.length){
+    $('#finishBox').classList.remove('hidden');
+    const rows = TOPICS.map(t=>{
+      const p = state.perTopicScore[t.id] ?? 0;
+      return `<li><strong>${t.title}:</strong> ${p}/5</li>`;
+    }).join('');
+    $('#finalTable').innerHTML = `<ul class="clean">${rows}</ul>`;
+    $('#finalCongrats').textContent =
+      `Glückwunsch Theo, Gut gemacht🎇 Gesamtscore: ${state.totalScore}/${TOPICS.length*5}`;
+  } else {
+    $('#finishBox').classList.add('hidden');
+    $('#finalTable').innerHTML = '';
+    $('#finalCongrats').textContent = '';
+  }
+
+  hide('#topicView'); hide('#quizView'); show('#home');
 }
 
-function checkAnswer(btn, choiceIndex) {
-  if (answered[idx]) return;
-  const c = cards[idx];
-  if (choiceIndex === c.correct) {
-    btn.classList.add("correct");
-    score++;
-  } else {
-    btn.classList.add("incorrect");
-    optionsEl.children[c.correct].classList.add("correct");
-  }
-  answered[idx] = true;
-  statusEl.textContent = `Frage ${idx+1} von ${cards.length} | Punkte: ${score}`;
+/* ======== TOPIC VIEW ======== */
+function openTopic(topic){
+  state.current = topic;
+  $('#topicTitle').textContent = topic.title;
+  $('#topicIntro').textContent = topic.intro;
+  // Mini-Lernkasten füllen
+  const ul = $('#learnList'); ul.innerHTML = '';
+  topic.learn.forEach(point=>{
+    const li = document.createElement('li'); li.textContent = point; ul.appendChild(li);
+  });
+  show('#topicView'); hide('#quizView'); hide('#home');
+}
+$('#backHome').addEventListener('click', renderHome);
+
+$('#startQuiz').addEventListener('click', ()=>{
+  if(!state.current) return;
+  state.qIndex = 0; state.selected = null;
+  state.perTopicScore[state.current.id] = state.perTopicScore[state.current.id] ?? 0;
+  shuffle(state.current.questions);  // Fragen mischen
+  renderQuestion();
+  hide('#topicView'); show('#quizView');
+});
+
+/* ======== QUIZ ======== */
+function renderQuestion(){
+  const t = state.current, qi = state.qIndex, q = t.questions[qi];
+  $('#topicScoreBadge').textContent = `Themenpunkte: ${state.perTopicScore[t.id]}/5`;
+  $('#qProgress').textContent = `Frage ${qi+1} / ${t.questions.length}`;
+  $('#questionText').textContent = q.q;
+  $('#feedback').textContent = '';
+  const box = $('#optionsBox'); box.innerHTML = '';
+
+  // Antworten mischen
+  const order = q.opts.map((_,i)=>i); shuffle(order);
+  order.forEach(i=>{
+    const b = document.createElement('button');
+    b.className='opt';
+    b.textContent = q.opts[i];
+    b.addEventListener('click', ()=>{
+      state.selected = i;
+      [...box.children].forEach(x=>x.classList.remove('selected'));
+      b.classList.add('selected');
+    });
+    box.appendChild(b);
+  });
 }
 
-document.getElementById("nextBtn").addEventListener("click", () => {
-  if (idx < cards.length-1) {
-    idx++;
-    renderCard();
+function checkAnswer(){
+  const t = state.current, q = t.questions[state.qIndex];
+  if(state.selected == null){ $('#feedback').textContent = 'Bitte wähle zuerst eine Antwort.'; return; }
+  const correct = state.selected === q.a;
+  if(correct){
+    if(!q._counted){ state.perTopicScore[t.id]++; q._counted = true; }
+    $('#feedback').textContent = 'Richtig! 👍';
   } else {
-    qEl.textContent = "Quiz beendet 🎉";
-    optionsEl.innerHTML = "";
-    statusEl.textContent = `Endpunktzahl: ${score} von ${cards.length}`;
+    $('#feedback').textContent = 'Nicht ganz – vergleiche Frage und Mini-Lernkasten.';
   }
-});
-document.getElementById("prevBtn").addEventListener("click", () => {
-  if (idx > 0) { idx--; renderCard(); }
-});
+  // Markieren
+  const children = [...$('#optionsBox').children];
+  children.forEach((btn)=>{
+    const isCorrect = (btn.textContent === q.opts[q.a]);
+    btn.classList.add(isCorrect ? 'correct' : 'incorrect');
+    btn.disabled = true;
+  });
+  $('#topicScoreBadge').textContent = `Themenpunkte: ${state.perTopicScore[t.id]}/5`;
+}
 
-renderCard();
+function nextQuestion(){
+  const t = state.current;
+  if(state.qIndex < t.questions.length-1){
+    state.qIndex++; state.selected=null; renderQuestion();
+  } else {
+    state.completed[t.id] = true;
+    state.totalScore = Object.values(state.perTopicScore).reduce((a,b)=>a+b,0);
+    renderHome();
+  }
+}
+function prevQuestion(){
+  if(state.qIndex>0){ state.qIndex--; state.selected=null; renderQuestion(); }
+}
+
+/* ======== EVENTS ======== */
+$('#checkQ').addEventListener('click', checkAnswer);
+$('#nextQ').addEventListener('click', nextQuestion);
+$('#prevQ').addEventListener('click', prevQuestion);
+
+/* ======== START ======== */
+renderHome();
 </script>
 </body>
 </html>
