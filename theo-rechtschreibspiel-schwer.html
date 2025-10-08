@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TheO Projekt – Rechtschreibquiz (4. Klasse)</title>
+  <style>
+    :root{
+      --bg:#f5f7f9; --fg:#111827; --card:#fff;
+      --accent:#3b8e22; --accent2:#6bbb3f;
+      --radius:14px; --shadow:0 8px 20px rgba(0,0,0,.08);
+      --ok:#16a34a; --err:#dc2626; --muted:#475569;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:var(--bg); color:var(--fg);
+    }
+    /* Header wie index.html */
+    header{
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+      color:#fff; text-align:center; padding:1.2rem; box-shadow:var(--shadow);
+    }
+    header h1{margin:0;font-size:1.8rem}
+    header p{margin:.3rem 0 0;opacity:.95}
+
+    /* Layout */
+    .wrap{max-width:1000px;margin:2rem auto;padding:0 1rem}
+    .card{
+      background:var(--card); border-radius:var(--radius);
+      box-shadow:var(--shadow); padding:1.2rem; transition:.2s ease; border:1px solid #eaeef2;
+    }
+    .card:hover{transform:translateY(-2px)}
+    .hint{color:var(--muted); line-height:1.7}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .right{margin-left:auto}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:#eef6e9;color:#214d10;border:1px solid #d8edc9;font-size:.9rem}
+
+    /* Buttons im Index-Stil */
+    .btn{
+      appearance:none; border:none; cursor:pointer; font-weight:700; border-radius:var(--radius);
+      padding:.7rem 1rem; box-shadow:0 4px 10px rgba(0,0,0,.1); transition:.15s ease;
+      background:var(--accent); color:#fff; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
+    }
+    .btn:hover{background:var(--accent2)}
+    .btn.secondary{
+      background:#fff; color:var(--fg); border:1px solid #e5e7eb; box-shadow:none;
+    }
+    .btn.secondary:hover{border-color:#d7dde4}
+
+    /* Themenraster wie index-Kartenlinks */
+    .themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+    .theme{display:block;text-decoration:none;text-align:center;background:#fff;color:var(--fg);
+      padding:1rem;border-radius:var(--radius);border:1px solid #eaeef2;box-shadow:var(--shadow);font-weight:700}
+    .theme:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(0,0,0,.1)}
+    .dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:.5rem;
+      background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+    /* Fokus-Spielbereich */
+    .textbox{
+      user-select:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:18px;
+      font-size:1.05rem; line-height:1.95;
+    }
+    .token{padding:2px 4px;border-radius:6px;margin:0 2px;display:inline-block;border:1px solid transparent}
+    .token.sel{background:rgba(107,187,63,.16);border-color:var(--accent2)}
+    .token.good{background:rgba(22,163,74,.16);border-color:var(--ok)}
+    .token.bad{background:rgba(220,38,38,.14);border-color:var(--err)}
+
+    .progress{height:10px;background:#eef2f7;border:1px solid #e5e7eb;border-radius:99px;overflow:hidden}
+    .progress>span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%}
+
+    /* Views (Themenwahl vs. Spiel-Unterseite) */
+    .view{display:none}
+    .view.active{display:block}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧠 TheO Projekt – Rechtschreibquiz (4. Klasse)</h1>
+    <p>Wähle ein Thema und spiele <strong>5 Runden</strong> im Fokus-Modus.</p>
+  </header>
+
+  <div class="wrap">
+    <!-- Ansicht 1: Themenwahl -->
+    <section id="view-home" class="view active">
+      <div class="card" style="margin-bottom:1rem">
+        <h2 style="margin:.2rem 0 .6rem;color:var(--accent)">Thema wählen</h2>
+        <p class="hint">Nach der Auswahl öffnet sich eine konzentrierte Spielansicht – nur Text, Markieren & Prüfen.</p>
+        <div class="themes" id="themeButtons"></div>
+      </div>
+      <div class="card">
+        <h2 style="margin:.2rem 0 .6rem;color:var(--accent)">So funktioniert’s</h2>
+        <ul class="hint" style="margin:0 0 0 1.1rem">
+          <li>In jedem Text sind <strong>genau 5 Fehler</strong> (Groß/Klein, <code>b↔d</code>, <code>t↔d</code>, Doppel-/Fehlbuchstaben, <code>das/dass</code>, <code>ck/k</code>, <code>ä/ae</code>).</li>
+          <li>Falsche Wörter anklicken zum Markieren, dann <strong>Prüfen</strong>. Treffer werden grün, Fehltreffer rot markiert.</li>
+          <li>Pro Thema 5 Runden, maximal 25 Punkte → Notenanzeige am Ende.</li>
+        </ul>
+      </div>
+      <div style="margin-top:1rem;text-align:center">
+        <a class="btn secondary" href="./index.html">← Zur Übersicht</a>
+      </div>
+    </section>
+
+    <!-- Ansicht 2: Spiel (Unterseite) -->
+    <section id="view-play" class="view">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <div class="row">
+            <div class="pill">Thema: <strong id="topicLabel">—</strong></div>
+            <div class="pill">Runde: <strong id="round">0</strong>/5</div>
+            <div class="pill">Punkte: <strong id="points">0</strong>/25</div>
+          </div>
+          <div class="row right">
+            <button class="btn secondary" id="backBtn">← Zur Themenwahl</button>
+            <button class="btn secondary" id="resetBtn">Neu starten</button>
+          </div>
+        </div>
+
+        <div class="progress" style="margin:14px 0 10px 0"><span id="bar"></span></div>
+
+        <div id="textBox" class="textbox" aria-live="polite">Wähle ein Thema, um zu starten.</div>
+
+        <div class="row" style="gap:.6rem; margin-top:.8rem">
+          <button class="btn" id="checkBtn">Prüfen</button>
+          <button class="btn secondary" id="nextBtn">Nächster Text</button>
+        </div>
+
+        <p id="feedback" class="hint" style="margin:.8rem 0 0 0"></p>
+      </div>
+
+      <div class="card" style="margin-top:1rem">
+        <h2 style="margin:.2rem 0 .6rem;color:var(--accent)">Ergebnis</h2>
+        <div class="row">
+          <div class="pill">Thema: <strong id="resultTheme">—</strong></div>
+          <div class="pill">Punkte: <strong id="resultPoints">0</strong>/25</div>
+          <div class="pill">Note: <strong id="resultGrade">—</strong></div>
+        </div>
+        <p class="hint" id="resultText" style="margin:.8rem 0 0 0">Nach 5 Runden erscheint hier deine Bewertung.</p>
+      </div>
+      <div style="margin-top:1rem;text-align:center">
+        <a class="btn secondary" href="./index.html">← Zur Übersicht</a>
+      </div>
+    </section>
+  </div>
+
+  <footer style="text-align:center;padding:1.2rem;color:#667085;font-size:.9rem">© 2025 TheO Projekt</footer>
+
+<script>
+/* ==============================
+   Konfiguration & Inhalte
+=================================*/
+const ROUNDS_PER_THEME = 5;
+const THEMES = [
+  { id:"baustelle", title:"Baustelle" },
+  { id:"bauernhof", title:"Bauernhof" },
+  { id:"fahrraeder", title:"Fahrräder" },
+  { id:"maschinenbau", title:"Maschinenbau" },
+  { id:"rechtschreibung", title:"Wofür man Rechtschreibung braucht" },
+];
+
+// Basistexte (ca. 300 Zeichen), pro Thema 5
+const BASE_TEXTS = {
+  baustelle: [
+`Auf der großen Baustelle arbeiten früh am Morgen Bagger, Kräne und Lastwagen zusammen. Die Zimmerleute vermessen die Balken, damit die Wände exakt stehen. Ein Polier erklärt der Gruppe die Sicherheitsregeln. Alle tragen Helme, Handschuhe und feste Schuhe, damit niemand verletzt wird.`,
+`Neben der Straße entsteht ein neues Schulgebäude. Maurer stapeln sorgfältig Ziegel, während der Kran schwere Paletten versetzt. Eine Absperrung schützt Fußgänger. Der Beton wird frisch gemischt, damit die Decke gleich gegossen werden kann. Am Ende wird die Baustelle ordentlich aufgeräumt.`,
+`Heute wird das Fundament geprüft. Ein Ingenieur misst die Tiefe der Gräben und kontrolliert die Bewehrung aus Stahl. Die Betonpumpe steht bereit. Ein Team legt Rohre für Wasser und Strom. Bevor die Platte gegossen wird, fotografiert die Bauleitung alles, damit dokumentiert ist, was im Boden liegt.`,
+`Beim Straßenbau wird der Untergrund verdichtet. Eine Walze fährt langsam vor und zurück, bis der Boden eben ist. Danach kommt eine Schicht Schotter. Die Arbeiter markieren die Kanten mit Farbe. Später wird Asphalt verteilt und mit der Rüttelplatte geglättet, damit Autos sicher und leise fahren.`,
+`Auf dem Neubau werden heute Fenster eingesetzt. Ein Monteur richtet die Rahmen millimetergenau aus. Dichtungen verhindern Zugluft und Regen. Danach wird die Dämmung ergänzt. Auf dem Dach montiert ein Team die Dachziegel. Zum Schluss prüft die Meisterin, ob alles sauber eingebaut ist.`
+  ],
+  bauernhof: [
+`Auf dem Bauernhof beginnt der Tag sehr früh. Der Bauer füttert die Kühe, prüft das Heu und melkt im Stall. Die Hühner scharren im Hof, während der Hund aufmerksam wacht. Später fährt der Traktor aufs Feld und zieht den Pflug. Am Abend werden die Tiere in den Stall gebracht und das Tor verschlossen.`,
+`Im Obstgarten werden heute Äpfel geerntet. Kinder helfen mit Körben und sortieren die Früchte. Die Bäuerin kocht daraus Mus und süßen Saft. Bei den Schweinen wird frisches Stroh verteilt. Der Hofladen verkauft Eier, Käse und Marmelade. Am Wochenende kommen Besucher zum Ponyreiten und Picknick.`,
+`Im Frühjahr säen alle fleißig. Der Boden wird gelockert und mit Saatgut bestückt. Regenwürmer lockern die Erde, damit die Wurzeln Luft bekommen. Auf der Weide trinken die Kälber bei ihren Müttern. Später werden Zäune repariert. Wenn ein Gewitter droht, holt die Familie die Tiere rechtzeitig rein.`,
+`Heute werden Kartoffeln geerntet. Eine Maschine hebt die Knollen aus der Erde. Auf dem Wagen werden die Kartoffeln sortiert und in Kisten gefüllt. In der Scheune duftet es nach Heu. Der Hofkatze gefällt es auf den warmen Strohballen. Abends ist der Hof ruhig und der Mond steht hell über den Feldern.`,
+`Im Gemüsebeet wachsen Salat, Möhren und Bohnen. Der Regen hat gut getan, aber Unkraut wächst schnell. Mit der Harke wird behutsam gelockert. Die Gießkanne steht bereit. Aus reifen Tomaten kocht die Familie eine Suppe. Am Zaun hängen Gartengeräte ordentlich, damit niemand stolpert.`
+  ],
+  fahrraeder: [
+`Fahrräder sind praktische Fahrzeuge. Mit Licht, Klingel und funktionierenden Bremsen fährt man sicher. Vor der Fahrt prüft man Luftdruck und Kette. Eine Schaltung hilft am Berg. Auf Radwegen achtet man auf Fußgänger. Ein Helm schützt den Kopf. Wer die Regeln kennt, kommt entspannt ans Ziel.`,
+`Heute wird ein Fahrrad gewartet. Die Kette wird gereinigt und geölt. Danach stellt man die Bremsen nach, damit sie gleichmäßig greifen. Das Laufrad wird zentriert, damit es rund läuft. Ein neuer Schlauch wird eingesetzt. Zum Schluss leuchtet das Rücklicht hell und die Klingel klingt freundlich.`,
+`Beim Ausflug fährt die Gruppe durch den Wald. Wurzeln und Sand erfordern Übung. In der Stadt sind Kreuzungen unübersichtlich, deshalb zeigt ein Handzeichen die Richtung. Vor dem Abbiegen schaut man über die Schulter. Ein reflektierender Mantel macht sichtbar. So bleibt die Fahrt angenehm.`,
+`Ein Mountainbike hat grobe Reifen und eine Federgabel. Auf Trails helfen Technik und Blickführung. Ein Rennrad ist leicht und schnell, dafür braucht man ruhige Hände am Lenker. Kinder lernen erst Balance, dann Bremsen und Schalten. Sicherheit geht vor Tempo, besonders bei Nässe und Dunkelheit.`,
+`Wer zur Schule radelt, spart Zeit und lernt Verantwortung. Pünktliche Abfahrt, sichere Route und ein Schloss gegen Diebstahl gehören dazu. Bei Regen schützt eine Jacke, im Sommer Sonnencreme. Mit Freunden macht das Fahren mehr Spaß, aber Rücksicht ist wichtig. So kommt jeder gut an.`
+  ],
+  maschinenbau: [
+`Im Maschinenbau planen Ingenieurinnen und Ingenieure präzise Bauteile. Am Computer entstehen Modelle, die später gefräst oder gedruckt werden. Toleranzen entscheiden, ob Teile zusammenpassen. Werkstoffe wie Stahl, Aluminium oder Kunststoff werden je nach Aufgabe ausgewählt und geprüft.`,
+`Eine Fertigung beginnt mit einer Zeichnung. Maße, Oberflächen und Bohrungen sind genau festgelegt. Auf CNC-Maschinen werden Programme geladen. Kühlmittel schützt Werkzeug und Werkstück. Messgeräte prüfen die Qualität. Erst wenn alle Werte stimmen, wird die Serie freigegeben und dokumentiert.`,
+`Ein Getriebe überträgt Drehmoment. Zahnräder greifen ineinander, Schmierung verhindert Verschleiß. Eine Welle wird gelagert, damit sie ruhig läuft. Gehäuse dämpfen Geräusche. Bei Prüfständen wird mit Sensoren gemessen. Daten zeigen, ob die Konstruktion zuverlässig funktioniert und sicher bleibt.`,
+`Roboter helfen bei schweren oder eintönigen Aufgaben. Sie schweißen, lackieren oder montieren Bauteile. Menschen überwachen, programmieren und kontrollieren die Ergebnisse. Schutzzäune sichern den Bereich. Wenn etwas auffällig ist, wird angehalten und nachgebessert, bevor es weitergeht.`,
+`Nach dem Zusammenbau folgt ein Testlauf. Ein Motor startet, Temperaturen und Schwingungen werden beobachtet. Kleine Lecks werden abgedichtet. Eine Checkliste wird Punkt für Punkt abgearbeitet. Erst danach wird ausgeliefert. Dokumentation hilft später bei Wartung und Verbesserungen.`
+  ],
+  rechtschreibung: [
+`Rechtschreibung braucht man überall: in Nachrichten, Berichten und Bewerbungen. Wer Regeln kennt, wirkt sicher und höflich. Großschreibung zeigt den Anfang von Sätzen und wichtigen Nomen. Geteilte oder Zusammenschreibung kann Bedeutung ändern. Übung hilft, Fehler zu vermeiden.`,
+`In der Schule und im Beruf ist richtiges Schreiben wichtig. Aufgabenhefte, E-Mails und Protokolle sollen verständlich sein. Wer Wörterbuch oder Nachschlage-App nutzt, lernt schnell. Auch langsames, genaues Lesen hilft. Wer zweifelt, fragt nach. Gute Rechtschreibung spart Zeit.`,
+`Beim Chatten tippt man oft schnell. Abkürzungen sind praktisch, aber im Aufsatz passt das nicht. Satzzeichen ordnen Gedanken. Bei längeren Texten hilft ein Plan. Danach prüft man Rechtschreibung und Grammatik. Mit ruhigem Tempo und Pausen erkennt man mehr. Am Ende liest man laut vor.`,
+`Rechtschreibung ist Teamarbeit mit Grammatik. Verben verändern ihre Form, Nomen haben Fälle und Artikel. Zusammengesetzte Wörter schreibt man meist zusammen. Fremdwörter lernt man mit Beispielen. Wer regelmäßig liest, merkt sich Schreibweisen leichter. So werden Texte verständlicher.`,
+`Auch später braucht man gute Texte: Bewerbungen, Verträge, Anleitungen. Wer ordentlich schreibt, zeigt Respekt. Korrekturprogramme helfen, ersetzen aber nicht den eigenen Blick. Fehler passieren allen. Wichtig ist, dass man sie findet und verbessert. So wird man Schritt für Schritt sicherer.`
+  ]
+};
+
+/* ==============================
+   DOM-Refs
+=================================*/
+const $ = id => document.getElementById(id);
+const viewHome = $('view-home');
+const viewPlay = $('view-play');
+const themeButtons = $('themeButtons');
+
+const topicLabel = $('topicLabel');
+const roundEl = $('round');
+const pointsEl = $('points');
+const bar = $('bar');
+
+const textBox = $('textBox');
+const feedback = $('feedback');
+
+const resultTheme = $('resultTheme');
+const resultPoints = $('resultPoints');
+const resultGrade = $('resultGrade');
+const resultText = $('resultText');
+
+const backBtn = $('backBtn');
+const resetBtn = $('resetBtn');
+const checkBtn = $('checkBtn');
+const nextBtn = $('nextBtn');
+
+/* ==============================
+   Spielzustand
+=================================*/
+let state = {
+  theme:null, round:0, points:0,
+  tokens:[], answerIdx:new Set(), selectedIdx:new Set(),
+  locked:false, usedIdx:[]
+};
+
+/* ==============================
+   View-Handling
+=================================*/
+function show(view){
+  viewHome.classList.remove('active');
+  viewPlay.classList.remove('active');
+  (view==='home'?viewHome:viewPlay).classList.add('active');
+}
+function buildThemeButtons(){
+  themeButtons.innerHTML='';
+  THEMES.forEach(th=>{
+    const a=document.createElement('a');
+    a.href="#"; a.className='theme';
+    a.innerHTML=`<span class="dot"></span>${th.title}`;
+    a.addEventListener('click',(e)=>{e.preventDefault(); startTheme(th.id);});
+    themeButtons.appendChild(a);
+  });
+}
+buildThemeButtons();
+
+/* ==============================
+   Tokenizer & Fehlergenerator
+=================================*/
+function tokenize(text){
+  const parts=text.split(/(\s+)/), out=[];
+  for(const part of parts){
+    if(part.trim()===""){ out.push({t:part,isWord:false}); }
+    else{
+      const sub=part.match(/[A-Za-zÄÖÜäöüß\-–—0-9]+|[^\sA-Za-zÄÖÜäöüß0-9]/g)||[part];
+      for(const s of sub){ out.push({t:s,isWord:/[A-Za-zÄÖÜäöüß0-9]/.test(s)}); }
+    }
+  }
+  return out;
+}
+const rnd = n => Math.floor(Math.random()*n);
+
+function lowerNoun(w){ if(/^[A-ZÄÖÜ][a-zäöüß]+$/.test(w)) return w[0].toLowerCase()+w.slice(1); return null; }
+function swapBD(w){ if(/[bd]/i.test(w)) return w.replace(/[bd]/gi,c=>c===c.toLowerCase()?(c==='b'?'d':'b'):(c==='B'?'D':'B')); return null; }
+function swapTD(w){ if(/[td]/i.test(w)) return w.replace(/[td]/gi,c=>c===c.toLowerCase()?(c==='t'?'d':'t'):(c==='T'?'D':'T')); return null; }
+function dropDouble(w){ if(w.length<4) return null; const i=Math.max(1,Math.min(w.length-2,rnd(w.length-2)+1)); return Math.random()<0.5?w.slice(0,i)+w.slice(i+1):w.slice(0,i)+w[i]+w.slice(i); }
+function dasDass(w){ if(w==='das')return'dass'; if(w==='dass')return'das'; if(w==='Das')return'Dass'; if(w==='Dass')return'Das'; return null; }
+function ckK(w){ if(/ck/.test(w)) return w.replace('ck','k'); if(/ck/.test(w.toLowerCase())) return w.replace(/ck/i,'k'); if(/[kK][aouäöü]/.test(w)&&Math.random()<0.4) return w.replace(/k/,'ck'); return null; }
+function aeUmlaut(w){ if(/ä/.test(w)) return w.replace(/ä/g,'ae'); if(/Ae/.test(w)) return w.replace(/Ae/g,'Ä'); if(/ae/.test(w)) return w.replace(/ae/g,'ä'); if(/[Ä]/.test(w)) return w.replace(/Ä/g,'Ae'); return null; }
+
+function pickErrorPositions(tokens){
+  const c=[]; tokens.forEach((tok,i)=>{ if(tok.isWord && /^[A-Za-zÄÖÜäöüß\-–—]+$/.test(tok.t)) c.push(i); });
+  for(let i=c.length-1;i>0;i--){ const j=rnd(i+1); [c[i],c[j]]=[c[j],c[i]]; }
+  return c;
+}
+function injectErrors(tokens){
+  const tks=tokens.map(x=>({t:x.t,isWord:x.isWord}));
+  const answerIdx=new Set();
+  const positions=pickErrorPositions(tks);
+  const transforms=[lowerNoun,swapBD,swapTD,dropDouble,dasDass,ckK,aeUmlaut];
+  let made=0, tries=0;
+  while(made<5 && tries<500 && positions.length){
+    const i=positions[rnd(positions.length)];
+    if(!tks[i]||!tks[i].isWord){ tries++; continue; }
+    const w=tks[i].t;
+    const shuffled=[...transforms].sort(()=>Math.random()-0.5);
+    let changed=null;
+    for(const fn of shuffled){
+      const cand=fn(w);
+      if(cand && cand!==w && /^[A-Za-zÄÖÜäöüß\-–—]+$/.test(cand)){ changed=cand; break; }
+    }
+    if(changed){
+      tks[i].t=changed; answerIdx.add(i); made++;
+      const idx=positions.indexOf(i); if(idx>=0) positions.splice(idx,1);
+    }else tries++;
+  }
+  // Fallback, falls noch nicht 5
+  let k=0;
+  while(made<5 && k<tks.length){
+    const i=positions[k++] ?? rnd(tks.length);
+    if(!tks[i]||!tks[i].isWord) continue;
+    const w=tks[i].t;
+    if(w.length>3){
+      const p=Math.min(w.length-2,Math.max(1,rnd(w.length-2)));
+      tks[i].t=w.slice(0,p)+w[p]+w.slice(p);
+      answerIdx.add(i); made++;
+    }
+  }
+  return {tokens:tks, answerIdx};
+}
+
+/* ==============================
+   Notenberechnung
+=================================*/
+function gradeFrom(points,max=ROUNDS_PER_THEME*5){
+  const r=points/max*100;
+  if(r>=95) return 1;
+  if(r>=80) return 2;
+  if(r>=65) return 3;
+  if(r>=50) return 4;
+  if(r>=30) return 5;
+  return 6;
+}
+function gradeText(g){
+  return ({1:"Sehr gut – top Leistung!",
+           2:"Gut – stark!",
+           3:"Befriedigend – ordentlich.",
+           4:"Ausreichend – noch etwas üben.",
+           5:"Mangelhaft – dranbleiben!",
+           6:"Ungenügend – Übung macht sicher."})[g];
+}
+
+/* ==============================
+   Flow
+=================================*/
+function resetState(full=false){
+  state.round=0; state.points=0; state.tokens=[]; state.answerIdx=new Set();
+  state.selectedIdx=new Set(); state.locked=false; state.usedIdx=[];
+  if(full) state.theme=null;
+  roundEl.textContent='0'; pointsEl.textContent='0'; bar.style.width='0%';
+  textBox.textContent = state.theme ? 'Klicke „Nächster Text“, um zu starten.' : 'Wähle ein Thema, um zu starten.';
+  feedback.textContent='';
+  resultTheme.textContent='—'; resultPoints.textContent='0'; resultGrade.textContent='—';
+  resultText.textContent='Nach 5 Runden erscheint hier deine Bewertung.';
+}
+function startTheme(themeId){
+  state.theme=themeId;
+  const title = THEMES.find(t=>t.id===themeId).title;
+  topicLabel.textContent=title;
+  resultTheme.textContent=title;
+  show('play'); // „Unterseite“
+  resetState(false);
+  newRound();
+}
+function pickBase(theme){
+  const arr = BASE_TEXTS[theme];
+  let idx=rnd(arr.length), guard=0;
+  while(state.usedIdx.slice(-2).includes(idx) && guard<20){ idx=rnd(arr.length); guard++; }
+  state.usedIdx.push(idx); if(state.usedIdx.length>6) state.usedIdx.shift();
+  return arr[idx];
+}
+function renderTokens(){
+  textBox.innerHTML='';
+  state.tokens.forEach((tok,i)=>{
+    const span=document.createElement('span');
+    span.textContent=tok.t;
+    if(tok.isWord){ span.className='token'; span.tabIndex=0; }
+    span.dataset.idx=i;
+    span.addEventListener('click',()=>toggle(i,span));
+    span.addEventListener('keydown',e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); toggle(i,span);} });
+    textBox.appendChild(span);
+  });
+}
+function toggle(i,el){
+  if(state.locked) return;
+  if(!state.tokens[i].isWord) return;
+  if(state.selectedIdx.has(i)){ state.selectedIdx.delete(i); el.classList.remove('sel'); }
+  else { state.selectedIdx.add(i); el.classList.add('sel'); }
+}
+function setProgress(){
+  roundEl.textContent=state.round.toString();
+  pointsEl.textContent=state.points.toString();
+  bar.style.width=(state.round/ROUNDS_PER_THEME*100)+'%';
+}
+function newRound(){
+  if(!state.theme){ feedback.textContent='Wähle zuerst ein Thema.'; return; }
+  if(state.round>=ROUNDS_PER_THEME){
+    feedback.textContent='Thema abgeschlossen. Zur Themenwahl zurück oder neu starten.';
+    return;
+  }
+  const base = pickBase(state.theme);
+  const {tokens,answerIdx} = injectErrors(tokenize(base));
+  state.tokens=tokens; state.answerIdx=answerIdx; state.selectedIdx=new Set(); state.locked=false;
+  renderTokens();
+  feedback.innerHTML='Markiere <strong>genau 5 falsche Wörter</strong> und klicke <strong>Prüfen</strong>.';
+}
+function check(){
+  if(!state.theme || state.tokens.length===0 || state.locked) return;
+  const sel=new Set(state.selectedIdx), ans=new Set(state.answerIdx);
+  document.querySelectorAll('.token').forEach(sp=>{
+    const i=Number(sp.dataset.idx);
+    if(sel.has(i)&&ans.has(i)) sp.classList.add('good');
+    else if(sel.has(i)&&!ans.has(i)) sp.classList.add('bad');
+  });
+  const tp=[...sel].filter(i=>ans.has(i)).length;
+  const fp=[...sel].filter(i=>!ans.has(i)).length;
+  const fn=[...ans].filter(i=>!sel.has(i)).length;
+  const gained=Math.max(0,Math.min(5,tp-fp));
+  state.points+=gained; state.locked=true; state.round+=1; setProgress();
+  feedback.innerHTML=`✔️ Treffer: <strong>${tp}</strong> • ❌ Fehltreffer: <strong>${fp}</strong> • 🙈 Übersehen: <strong>${fn}</strong> → <strong>+${gained} Punkt${gained===1?'':'e'}</strong>`;
+
+  if(state.round===ROUNDS_PER_THEME){
+    const g=gradeFrom(state.points);
+    resultPoints.textContent=String(state.points);
+    resultGrade.textContent=String(g);
+    resultText.textContent=gradeText(g);
+  }
+}
+function next(){
+  if(!state.theme) return;
+  if(!state.locked){ feedback.textContent='Bitte zuerst „Prüfen“ klicken.'; return; }
+  document.querySelectorAll('.token').forEach(sp=>sp.classList.remove('good','bad','sel'));
+  if(state.round<ROUNDS_PER_THEME) newRound();
+  else feedback.textContent='Thema abgeschlossen. Mit „Zur Themenwahl“ zurück.';
+}
+
+/* ==============================
+   Events
+=================================*/
+checkBtn.addEventListener('click',check);
+nextBtn.addEventListener('click',next);
+resetBtn.addEventListener('click',()=>{ resetState(false); newRound(); });
+backBtn.addEventListener('click',()=>{ show('home'); resetState(true); });
+</script>
+</body>
+</html>
