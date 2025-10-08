@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mathe – 2. Klasse (+ / -) mit Highscore</title>
+<style>
+  :root{--accent:#2563eb;--ok:#16a34a;--err:#dc2626;--bg:#f5f7f9;--card:#fff;--shadow:0 8px 20px rgba(0,0,0,.08);}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:#111827}
+  .sticky{position:sticky;top:0;background:var(--accent);color:#fff;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.1);z-index:5}
+  .sticky a{color:#fff;text-decoration:none;font-weight:800}
+  header{background:var(--accent);color:#fff;text-align:center;padding:1rem;box-shadow:var(--shadow)}
+  main{max-width:900px;margin:1.5rem auto;padding:1rem;display:grid;gap:1rem;grid-template-columns:1fr; }
+  @media(min-width:900px){ main{ grid-template-columns: 1.2fr .8fr; } }
+  .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:1.2rem;}
+  .center{text-align:center}
+  input{font-size:1.6rem;text-align:center;width:110px;padding:.35rem;border-radius:10px;border:2px solid #cbd5e1}
+  button{font-size:1rem;padding:.6rem 1rem;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  .ok{color:var(--ok);font-weight:700}
+  .err{color:var(--err);font-weight:700}
+  .stat{margin-top:1rem;color:#475569}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .btn-ghost{background:#eef2ff;color:#1e40af}
+  .btn-danger{background:#fee2e2;color:#991b1b}
+  .grid{display:grid;gap:.6rem}
+  .kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:.6rem .8rem;display:flex;justify-content:space-between}
+  .kpi b{font-size:1.05rem}
+  .dim{color:#64748b}
+</style>
+</head>
+<body>
+<div class="sticky"><a href="./index.html">← Zur Übersicht</a></div>
+
+<header>
+  <h1>Mathe-Quiz – 2. Klasse</h1>
+  <p>150 Aufgaben mit + und − • Falsche Aufgaben kommen zufällig wieder</p>
+</header>
+
+<main>
+  <!-- SPIEL -->
+  <section class="card center">
+    <h2 id="task">Aufgabe lädt …</h2>
+    <div class="row" style="margin:.4rem 0 1rem">
+      <input id="answer" type="number" inputmode="numeric" aria-label="Antwort">
+      <button id="checkBtn">Antwort prüfen</button>
+    </div>
+
+    <p id="feedback"></p>
+
+    <div class="stat" id="stat"></div>
+
+    <div class="row" style="margin-top:1rem">
+      <button id="restartBtn" class="btn-ghost">🔄 Neustart (neue 150 Aufgaben)</button>
+    </div>
+  </section>
+
+  <!-- HIGHSCORE -->
+  <aside class="card">
+    <h3 style="margin-top:0">🏆 Highscore</h3>
+    <div class="grid" id="hsBox">
+      <div class="kpi"><span>Beste Punktzahl</span><b id="hsBest">–</b></div>
+      <div class="kpi"><span>Beste Genauigkeit</span><b id="hsAcc">–</b></div>
+      <div class="kpi"><span>Wenigste Fehler</span><b id="hsMist">–</b></div>
+      <div class="kpi"><span>Versuche gesamt</span><b id="hsTry">0</b></div>
+      <div class="kpi"><span>Zuletzt aktualisiert</span><b id="hsWhen" class="dim">–</b></div>
+    </div>
+    <div class="row" style="margin-top:.8rem">
+      <button id="resetHsBtn" class="btn-danger">🗑️ Highscore zurücksetzen</button>
+    </div>
+    <p class="dim" style="margin:.8rem 0 0">Hinweis: Highscore wird lokal im Browser gespeichert (localStorage).</p>
+  </aside>
+</main>
+
+<script>
+/* ===== Utils ===== */
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function fmtPct(x){return (Math.round(x*1000)/10).toFixed(1)+'%'}
+function nowStr(){const d=new Date(); return d.toLocaleString()}
+
+/* ===== Aufgaben generieren (150) =====
+   – viele Aufgaben im Zahlenraum bis 20 (typisch 2. Klasse)
+   – zusätzliche gemischte Aufgaben bis 100 für Abwechslung
+*/
+function createTasks(){
+  const tasks=[];
+  // Zahlenraum bis 20: Additionen ohne Überschreitung & Subtraktionen ohne Negativ
+  for(let a=0;a<=20;a++){
+    for(let b=0;b<=20;b++){
+      if(a+b<=20 && (a>0 || b>0)) tasks.push({q:`${a} + ${b}`,ans:a+b});
+      if(a-b>=0) tasks.push({q:`${a} - ${b}`,ans:a-b});
+    }
+  }
+  // 50 gemischte Zufallsaufgaben bis 100 (leichte bis mittlere Schwierigkeit)
+  for(let i=0;i<50;i++){
+    const a=Math.floor(Math.random()*91)+10; // 10..100
+    const b=Math.floor(Math.random()*91)+10;
+    if(Math.random()<0.5){
+      tasks.push({q:`${a} + ${b}`,ans:a+b});
+    }else{
+      const big=Math.max(a,b), small=Math.min(a,b);
+      tasks.push({q:`${big} - ${small}`,ans:big-small});
+    }
+  }
+  // durchmischen & auf 150 begrenzen
+  return shuffle(tasks).slice(0,150);
+}
+
+/* ===== Highscore Storage ===== */
+const HS_KEY='mathe2_highscore_v1';
+function loadHS(){
+  try{ return JSON.parse(localStorage.getItem(HS_KEY)) || {best:0, acc:0, minMistakes:null, tries:0, when:null}; }
+  catch(e){ return {best:0, acc:0, minMistakes:null, tries:0, when:null}; }
+}
+function saveHS(hs){ localStorage.setItem(HS_KEY, JSON.stringify(hs)); }
+function renderHS(){
+  const hs=loadHS();
+  document.getElementById('hsBest').textContent = hs.best || '–';
+  document.getElementById('hsAcc').textContent  = hs.acc ? fmtPct(hs.acc) : '–';
+  document.getElementById('hsMist').textContent = (hs.minMistakes==null)?'–':hs.minMistakes;
+  document.getElementById('hsTry').textContent  = hs.tries||0;
+  document.getElementById('hsWhen').textContent = hs.when || '–';
+}
+
+/* ===== Spiel-State ===== */
+let allTasks=createTasks();
+let wrong=[];           // falsche Aufgaben werden hier erneut eingestreut
+let current=null;
+let correct=0, total=0, mistakes=0;
+let running=true;       // beendet, wenn alle Aufgaben + falschen erledigt
+
+/* ===== Elemente ===== */
+const qEl=document.getElementById("task");
+const aEl=document.getElementById("answer");
+const fb=document.getElementById("feedback");
+const stat=document.getElementById("stat");
+const checkBtn=document.getElementById("checkBtn");
+const restartBtn=document.getElementById("restartBtn");
+const resetHsBtn=document.getElementById("resetHsBtn");
+
+/* ===== Funktionen ===== */
+function updateStat(){
+  const acc = total ? (correct/total) : 0;
+  stat.textContent = `Richtig: ${correct} / ${total}  •  Genauigkeit: ${fmtPct(acc)}  •  Offen (falsch): ${wrong.length}`;
+}
+function nextTask(){
+  if(allTasks.length===0 && wrong.length===0){
+    endRun();
+    return;
+  }
+  // falsche mit 25% Wahrscheinlichkeit einstreuen
+  if(wrong.length>0 && Math.random()<0.25){
+    current=wrong.shift();
+  }else{
+    current=allTasks.shift();
+  }
+  qEl.textContent=current.q;
+  aEl.value="";
+  aEl.focus();
+  fb.textContent="";
+  updateStat();
+}
+
+function endRun(){
+  running=false;
+  qEl.textContent="🎉 Super! Du hast alle Aufgaben bearbeitet!";
+  const acc = total ? correct/total : 0;
+  fb.innerHTML = `<span class="ok">Ergebnis: ${correct} richtig von ${total} • Genauigkeit ${fmtPct(acc)} • Fehler: ${mistakes}</span>`;
+  checkBtn.disabled=true; aEl.disabled=true;
+
+  // Highscore prüfen/speichern
+  const hs=loadHS(); hs.tries = (hs.tries||0)+1;
+  let updated=false;
+  if(correct > (hs.best||0)){ hs.best=correct; updated=true; }
+  if(acc > (hs.acc||0)){ hs.acc=acc; updated=true; }
+  if(hs.minMistakes==null || mistakes < hs.minMistakes){ hs.minMistakes=mistakes; updated=true; }
+  if(updated){ hs.when = nowStr(); }
+  saveHS(hs);
+  renderHS();
+}
+
+checkBtn.onclick=()=>{
+  if(!running) return;
+  const val=parseInt(aEl.value,10);
+  if(isNaN(val)){ fb.textContent='Bitte gib eine Zahl ein.'; aEl.focus(); return; }
+  total++;
+  if(val===current.ans){
+    correct++;
+    fb.innerHTML='<span class="ok">✅ Richtig!</span>';
+  }else{
+    mistakes++;
+    fb.innerHTML=`<span class="err">❌ Falsch – richtig wäre ${current.ans}</span>`;
+    wrong.push(current); // später erneut zeigen
+  }
+  updateStat();
+  setTimeout(nextTask,700);
+};
+
+// ENTER zum Prüfen
+aEl.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ checkBtn.click(); }
+});
+
+// Neustart (neue 150 Aufgaben)
+restartBtn.onclick=()=>{
+  allTasks=createTasks();
+  wrong.length=0;
+  current=null;
+  correct=0; total=0; mistakes=0;
+  running=true;
+  checkBtn.disabled=false; aEl.disabled=false;
+  fb.textContent="";
+  nextTask();
+};
+
+// Highscore löschen
+resetHsBtn.onclick=()=>{
+  if(confirm('Highscore wirklich löschen?')){
+    localStorage.removeItem(HS_KEY);
+    renderHS();
+  }
+};
+
+/* ===== Start ===== */
+renderHS();
+nextTask();
+</script>
+</body>
+</html>
