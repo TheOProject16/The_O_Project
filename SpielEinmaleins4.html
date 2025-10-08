@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Großes Einmaleins – 4. Klasse (× / ÷) mit Highscore</title>
+<style>
+  :root{--accent:#0ea5e9;--ok:#16a34a;--err:#dc2626;--bg:#f6f7fb;--card:#fff;--shadow:0 8px 20px rgba(0,0,0,.08);}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:#111827}
+  .sticky{position:sticky;top:0;background:var(--accent);color:#fff;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.1);z-index:5}
+  .sticky a{color:#fff;text-decoration:none;font-weight:800}
+  header{background:var(--accent);color:#fff;text-align:center;padding:1rem;box-shadow:var(--shadow)}
+  main{max-width:1000px;margin:1.2rem auto;padding:1rem;display:grid;gap:1rem}
+  @media(min-width:980px){ main{grid-template-columns:1.2fr .8fr} }
+  .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:1.2rem}
+  .center{text-align:center}
+  input[type=number]{font-size:1.7rem;text-align:center;width:120px;padding:.4rem;border-radius:10px;border:2px solid #cbd5e1}
+  button{font-size:1rem;padding:.6rem 1rem;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  .ok{color:var(--ok);font-weight:700}
+  .err{color:var(--err);font-weight:700}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+  .stat{margin-top:.8rem;color:#475569}
+  .kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:.6rem .8rem;display:flex;justify-content:space-between;margin:.35rem 0}
+  .dim{color:#64748b}
+  .btn-ghost{background:#e0f2fe;color:#075985}
+  .btn-danger{background:#fee2e2;color:#991b1b}
+  .optrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  label{display:inline-flex;gap:.4rem;align-items:center}
+  select, input[type=checkbox]{font-size:1rem;padding:.3rem .5rem}
+  .hint{font-size:.9rem;color:#64748b}
+</style>
+</head>
+<body>
+<div class="sticky"><a href="./index.html">← Zur Übersicht</a></div>
+
+<header>
+  <h1>Großes Einmaleins – 4. Klasse</h1>
+  <p>150 Aufgaben × / ÷ • Falsche Aufgaben tauchen später wieder auf</p>
+</header>
+
+<main>
+  <!-- SPIEL -->
+  <section class="card center">
+    <h2 id="task">Aufgabe lädt …</h2>
+    <div class="row" style="margin:.5rem 0 1rem">
+      <input id="answer" type="number" inputmode="numeric" aria-label="Antwort">
+      <button id="checkBtn">Antwort prüfen</button>
+    </div>
+    <p id="feedback"></p>
+    <div class="stat" id="stat"></div>
+
+    <div class="row" style="margin-top:1rem">
+      <button id="restartBtn" class="btn-ghost">🔄 Neustart (neue 150 Aufgaben)</button>
+    </div>
+  </section>
+
+  <!-- RECHTS: Einstellungen + Highscore -->
+  <aside class="card">
+    <h3 style="margin-top:0">⚙️ Einstellungen</h3>
+    <div class="optrow" style="margin:.3rem 0 .6rem">
+      <label> Zahlenraum:
+        <select id="rangeSel">
+          <option value="10">bis 10</option>
+          <option value="20" selected>bis 20 (großes 1×1)</option>
+        </select>
+      </label>
+    </div>
+    <div class="optrow" style="margin:.3rem 0">
+      <label><input id="divToggle" type="checkbox" checked> Division einbeziehen (÷)</label>
+    </div>
+    <p class="hint">Hinweis: Änderungen wirken beim Neustart.</p>
+    <div class="row" style="margin-top:.6rem">
+      <button id="applyBtn">✅ Anwenden & neu starten</button>
+    </div>
+
+    <h3 style="margin:1rem 0 .4rem">🏆 Highscore</h3>
+    <div class="kpi"><span>Beste Punktzahl</span><b id="hsBest">–</b></div>
+    <div class="kpi"><span>Beste Genauigkeit</span><b id="hsAcc">–</b></div>
+    <div class="kpi"><span>Wenigste Fehler</span><b id="hsMist">–</b></div>
+    <div class="kpi"><span>Versuche gesamt</span><b id="hsTry">0</b></div>
+    <div class="kpi"><span>Zuletzt aktualisiert</span><b id="hsWhen" class="dim">–</b></div>
+    <div class="row" style="margin-top:.6rem">
+      <button id="resetHsBtn" class="btn-danger">🗑️ Highscore zurücksetzen</button>
+    </div>
+    <p class="dim" style="margin:.6rem 0 0">Highscore wird lokal im Browser gespeichert.</p>
+  </aside>
+</main>
+
+<script>
+/* ========= Utils ========= */
+const $ = s => document.querySelector(s);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function fmtPct(x){return (Math.round(x*1000)/10).toFixed(1)+'%'}
+function nowStr(){return new Date().toLocaleString()}
+
+/* ========= Highscore Storage ========= */
+const HS_KEY='einmaleins4_highscore_v1';
+function loadHS(){
+  try{ return JSON.parse(localStorage.getItem(HS_KEY)) || {best:0,acc:0,minMistakes:null,tries:0,when:null}; }
+  catch(e){ return {best:0,acc:0,minMistakes:null,tries:0,when:null}; }
+}
+function saveHS(hs){ localStorage.setItem(HS_KEY, JSON.stringify(hs)); }
+function renderHS(){
+  const hs=loadHS();
+  $('#hsBest').textContent = hs.best || '–';
+  $('#hsAcc').textContent  = hs.acc ? fmtPct(hs.acc) : '–';
+  $('#hsMist').textContent = (hs.minMistakes==null)?'–':hs.minMistakes;
+  $('#hsTry').textContent  = hs.tries||0;
+  $('#hsWhen').textContent = hs.when || '–';
+}
+
+/* ========= Einstellungen Storage ========= */
+const SET_KEY='einmaleins4_settings_v1';
+function loadSettings(){
+  try{ return JSON.parse(localStorage.getItem(SET_KEY)) || {range:20, div:true}; }
+  catch(e){ return {range:20, div:true}; }
+}
+function saveSettings(s){ localStorage.setItem(SET_KEY, JSON.stringify(s)); }
+
+/* ========= Aufgaben ========= */
+function createTasks(range=20, withDiv=true){
+  const tasks=[];
+  // Multiplikation 1..range
+  for(let a=1;a<=range;a++){
+    for(let b=1;b<=range;b++){
+      tasks.push({q:`${a} × ${b}`, ans:a*b, type:'mul'});
+      // Division passend (Produkt ÷ Faktor = anderer Faktor)
+      if(withDiv){
+        tasks.push({q:`${a*b} ÷ ${a}`, ans:b, type:'div'});
+        tasks.push({q:`${a*b} ÷ ${b}`, ans:a, type:'div'});
+      }
+    }
+  }
+  // durchmischen & auf 150 begrenzen
+  return shuffle(tasks).slice(0,150);
+}
+
+/* ========= Spiel-State ========= */
+let settings = loadSettings();
+let allTasks = createTasks(settings.range, settings.div);
+let wrong = [];
+let current = null;
+let correct=0, total=0, mistakes=0;
+let running=true;
+
+/* ========= Elemente ========= */
+const qEl = $('#task');
+const aEl = $('#answer');
+const fb  = $('#feedback');
+const stat= $('#stat');
+const checkBtn = $('#checkBtn');
+const restartBtn = $('#restartBtn');
+const resetHsBtn = $('#resetHsBtn');
+const rangeSel = $('#rangeSel');
+const divToggle = $('#divToggle');
+const applyBtn = $('#applyBtn');
+
+/* ========= UI Init ========= */
+rangeSel.value = String(settings.range);
+divToggle.checked = !!settings.div;
+
+/* ========= Funktionen ========= */
+function updateStat(){
+  const acc = total ? (correct/total) : 0;
+  stat.textContent = `Richtig: ${correct} / ${total}  •  Genauigkeit: ${fmtPct(acc)}  •  Offen (falsch): ${wrong.length}`;
+}
+
+function nextTask(){
+  if(allTasks.length===0 && wrong.length===0){
+    endRun(); return;
+  }
+  // falsche zu 30% einstreuen
+  if(wrong.length>0 && Math.random()<0.30){
+    current = wrong.shift();
+  } else {
+    current = allTasks.shift();
+  }
+  qEl.textContent = current.q;
+  aEl.value = '';
+  aEl.focus();
+  fb.textContent='';
+  updateStat();
+}
+
+function endRun(){
+  running=false;
+  qEl.textContent="🎉 Spitze! Alle Aufgaben wurden bearbeitet.";
+  const acc = total ? correct/total : 0;
+  fb.innerHTML = `<span class="ok">Ergebnis: ${correct} richtig von ${total} • Genauigkeit ${fmtPct(acc)} • Fehler: ${mistakes}</span>`;
+  checkBtn.disabled=true; aEl.disabled=true;
+
+  // Highscore aktualisieren
+  const hs=loadHS(); hs.tries=(hs.tries||0)+1;
+  let upd=false;
+  if(correct > (hs.best||0)){ hs.best=correct; upd=true; }
+  if(acc > (hs.acc||0)){ hs.acc=acc; upd=true; }
+  if(hs.minMistakes==null || mistakes < hs.minMistakes){ hs.minMistakes=mistakes; upd=true; }
+  if(upd){ hs.when = nowStr(); }
+  saveHS(hs); renderHS();
+}
+
+checkBtn.onclick=()=>{
+  if(!running) return;
+  const val = parseInt(aEl.value,10);
+  if(isNaN(val)){ fb.textContent='Bitte gib eine Zahl ein.'; aEl.focus(); return; }
+  total++;
+  if(val===current.ans){
+    correct++;
+    fb.innerHTML='<span class="ok">✅ Richtig!</span>';
+  }else{
+    mistakes++;
+    fb.innerHTML=`<span class="err">❌ Falsch – richtig wäre ${current.ans}</span>`;
+    wrong.push(current);
+  }
+  updateStat();
+  setTimeout(nextTask,700);
+};
+
+// ENTER = prüfen
+aEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ checkBtn.click(); }});
+
+// Neustart (neue Aufgaben)
+function restart(){
+  allTasks = createTasks(settings.range, settings.div);
+  wrong.length=0; current=null;
+  correct=0; total=0; mistakes=0;
+  running=true; checkBtn.disabled=false; aEl.disabled=false;
+  fb.textContent=''; nextTask();
+}
+restartBtn.onclick = restart;
+
+// Einstellungen anwenden
+applyBtn.onclick = ()=>{
+  settings = {range: parseInt(rangeSel.value,10), div: divToggle.checked};
+  saveSettings(settings);
+  restart();
+};
+
+// Highscore löschen
+resetHsBtn.onclick=()=>{
+  if(confirm('Highscore wirklich löschen?')){
+    localStorage.removeItem(HS_KEY); renderHS();
+  }
+};
+
+/* ========= Start ========= */
+renderHS();
+nextTask();
+</script>
+</body>
+</html>
