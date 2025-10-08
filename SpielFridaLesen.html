@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frida – Lesequiz (2. Klasse)</title>
+<style>
+  :root{ --bg:#f5f7f9; --fg:#111827; --muted:#4b5563; --card:#fff; --accent:#2e7d32; --ok:#16a34a; --err:#dc2626; --shadow:0 10px 24px rgba(0,0,0,.12); --radius:14px; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+  .wrap{max-width:1000px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  h1{margin:0 0 6px;font-size:1.8rem}
+  .lead{color:var(--muted)}
+  .grid{display:grid;gap:14px}
+  @media(min-width:900px){.grid{grid-template-columns:1fr 1fr 1fr}}
+  .topic{background:linear-gradient(135deg,#8DC63F,#6AA528);color:#fff;border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+  .topic h3{margin:0 0 6px}
+  .topic .cta{display:inline-block;margin-top:6px;background:#fff;color:#1b3b0b;border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer}
+  .topic.locked{opacity:.55;filter:saturate(.75);pointer-events:none}
+  .badge{float:right;background:rgba(255,255,255,.25);padding:2px 8px;border-radius:999px;font-size:.85rem}
+  .btn{border:0;border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.ghost{background:transparent;color:var(--accent)}
+  .pill{display:inline-block;background:#e8f5e9;color:#1b5e20;border-radius:999px;padding:6px 10px;font-weight:800}
+  .muted{color:var(--muted)}
+  .divider{height:1px;background:#e5e7eb;margin:12px 0}
+  .q{font-weight:800}
+  .options{display:grid;gap:10px;margin:10px 0}
+  .opt{border:2px solid #e5e7eb;padding:12px;border-radius:12px;background:#fff;cursor:pointer}
+  .opt:hover{border-color:#cbd5e0}
+  .opt.correct{border-color:var(--ok);background:#ecfdf5}
+  .opt.incorrect{border-color:var(--err);background:#fef2f2}
+  .sticky{position:sticky;top:0;background:#2e7d32;color:#fff;padding:8px 12px;border-bottom:1px solid rgba(0,0,0,.1);z-index:5}
+  .sticky a{color:#fff;text-decoration:none;font-weight:800}
+</style>
+</head>
+<body>
+<div class="sticky"><a href="./index.html">← Zur Übersicht</a></div>
+<div class="wrap">
+
+  <header class="card">
+    <h1>Fridas Lesequiz</h1>
+    <p class="lead">Lies einen kurzen Text (≈300 Zeichen) und beantworte 5 Fragen. Für Kinder in der 2. Klasse.</p>
+  </header>
+
+  <!-- HOME -->
+  <section id="home" class="card">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <span class="pill" id="scoreBadge">Punkte: 0</span>
+      <span class="muted" id="progressText">0 / 6 Themen erledigt</span>
+    </div>
+    <div class="divider"></div>
+    <div id="topics" class="grid"></div>
+  </section>
+
+  <!-- TOPIC -->
+  <section id="topicView" class="card" hidden>
+    <button class="btn ghost" id="backBtn">⟵ zurück</button>
+    <h2 id="tTitle" style="margin:.5rem 0 0"></h2>
+    <p id="tText" class="muted" style="line-height:1.5"></p>
+    <div class="divider"></div>
+    <button class="btn primary" id="startBtn">Quiz starten</button>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quizView" class="card" hidden>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <span class="pill" id="topicScore">Themenpunkte: 0/5</span>
+      <span class="muted" id="qProg">Frage 1 / 5</span>
+    </div>
+    <div class="divider"></div>
+    <div class="q" id="qText"></div>
+    <div id="opts" class="options"></div>
+    <div class="divider"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="checkBtn">Antwort prüfen</button>
+      <button class="btn" id="nextBtn">Weiter</button>
+    </div>
+    <p id="fb" class="muted"></p>
+  </section>
+
+</div>
+
+<script>
+/* ========= THEMEN (Texte ≈300 Zeichen, 2. Klasse) ========= */
+const TOPICS = [
+  {
+    id:"island", title:"Island",
+    text:"Island ist eine Insel im hohen Norden. Dort gibt es Vulkane, heiße Quellen und viele Schafe. Manche Flüsse sind warm, weil Wasser aus der Erde kommt. Im Winter ist es lange dunkel, im Sommer sehr lange hell. Die Menschen baden gern in blauen Lagunen und passen gut auf die Natur auf.",
+    questions:[
+      {q:"Was ist Island?", opts:["Eine Insel","Ein Gebirge","Ein See","Ein Wald"], a:0},
+      {q:"Was sieht man dort oft?", opts:["Vulkane","Pandas","Palmen","Wüste"], a:0},
+      {q:"Warum sind manche Flüsse warm?", opts:["Wasser kommt heiß aus der Erde","Die Sonne brennt immer","Sie werden gekocht","Weil sie sehr tief sind"], a:0},
+      {q:"Wie ist der Winter in Island?", opts:["Lange dunkel","Sehr heiß","Ganz ohne Schnee","Nur kurz"], a:0},
+      {q:"Worauf achten die Menschen?", opts:["Auf die Natur","Auf laute Musik","Auf schnelle Autos","Auf bunte Häuser"], a:0}
+    ]
+  },
+  {
+    id:"pferde", title:"Pferde",
+    text:"Pferde sind große, starke Tiere. Sie fressen gern Heu, Gras und trinken viel Wasser. Mit Hufen laufen sie schnell über Wiesen. Ein Sattel hilft dem Reiter beim Sitzen. Pferde brauchen Pflege: Fell bürsten, Hufe sauber machen und genug Bewegung. Sie können sehr freundlich und neugierig sein.",
+    questions:[
+      {q:"Was fressen Pferde gern?", opts:["Heu und Gras","Fisch","Schokolade","Pizza"], a:0},
+      {q:"Wozu dient ein Sattel?", opts:["Zum Sitzen für den Reiter","Zum Füttern","Zum Fliegen","Zum Schlafen"], a:0},
+      {q:"Was brauchen Pferde?", opts:["Pflege und Bewegung","Sehr wenig Wasser","Keinen Platz","Nur Süßigkeiten"], a:0},
+      {q:"Wie laufen Pferde?", opts:["Mit Hufen","Auf Pfoten","Auf Rädern","Auf Skiern"], a:0},
+      {q:"Wie sind viele Pferde?", opts:["Freundlich","Unsichtbar","Böse","Stachelig"], a:0}
+    ]
+  },
+  {
+    id:"springreiten", title:"Springreiten",
+    text:"Beim Springreiten reitet man über bunte Hindernisse. Pferd und Reiter bilden ein Team. Vor dem Sprung bleiben sie ruhig, dann galoppieren sie an und heben ab. Wichtig sind guter Sitz, klare Hilfen und Mut. Nach dem Sprung lobt der Reiter sein Pferd. Training macht beide sicherer.",
+    questions:[
+      {q:"Worüber springt man?", opts:["Hindernisse","Seen","Autos","Berge"], a:0},
+      {q:"Was sind Reiter und Pferd?", opts:["Ein Team","Gegner","Zuschauer","Richter"], a:0},
+      {q:"Was hilft vor dem Sprung?", opts:["Ruhig bleiben","Laut schreien","Anhalten","Augen schließen"], a:0},
+      {q:"Was kommt nach dem Sprung?", opts:["Loben","Schimpfen","Schlafen","Füttern"], a:0},
+      {q:"Was macht sicherer?", opts:["Training","Zufall","Fernsehen","Kaugummi"], a:0}
+    ]
+  },
+  {
+    id:"kaugummi", title:"Kaugummis",
+    text:"Kaugummi schmeckt süß und macht Blasen. Zu viel ist aber nicht gut. Manche Sorten haben viel Zucker. Das ist schlecht für Zähne und Bauch. Kaugummi gehört nie auf den Boden, sondern in den Mülleimer. Wer nur selten kaut und danach Zähne putzt, schützt seine Gesundheit und die Umwelt.",
+    questions:[
+      {q:"Was ist bei viel Kaugummi schlecht?", opts:["Zucker schadet Zähnen","Man wird unsichtbar","Man kann nicht laufen","Es wird kalt"], a:0},
+      {q:"Wohin gehört Kaugummi nach dem Kauen?", opts:["In den Mülleimer","Unter den Tisch","Auf die Straße","In den Baum"], a:0},
+      {q:"Was hilft nach dem Kauen?", opts:["Zähne putzen","Mehr Zucker essen","Nichts trinken","Lange schreien"], a:0},
+      {q:"Wie oft sollte man Kaugummi kauen?", opts:["Nur selten","Immer","Gar nicht trinken","Den ganzen Tag"], a:0},
+      {q:"Was schützt die Umwelt?", opts:["Kein Kaugummi wegwerfen","Alles fallen lassen","Im Park kleben","Fenster anmalen"], a:0}
+    ]
+  },
+  {
+    id:"bibi", title:"Bibi Blocksberg",
+    text:"Bibi Blocksberg ist ein fröhliches Hexenmädchen. Mit „Hex-hex!“ gelingen kleine Zauber. Manchmal geht etwas schief, dann hilft Bibi mit Freunden und Eltern, alles wieder gut zu machen. Sie lernt, ehrlich zu sein, zu helfen und um Entschuldigung zu bitten. Am Ende klappt es meistens.",
+    questions:[
+      {q:"Wer ist Bibi Blocksberg?", opts:["Ein Hexenmädchen","Ein Pirat","Ein Roboter","Ein Hund"], a:0},
+      {q:"Welches Wort sagt sie beim Zaubern?", opts:["Hex-hex!","Abrakadabra Kaugummi","Peng!","Aua!"], a:0},
+      {q:"Was passiert manchmal?", opts:["Etwas geht schief","Es regnet Bonbons","Niemand redet","Alle schlafen"], a:0},
+      {q:"Wer hilft Bibi?", opts:["Freunde und Eltern","Niemand","Nur Roboter","Nur Tiere"], a:0},
+      {q:"Was lernt Bibi?", opts:["Ehrlich sein und helfen","Nur rennen","Nur laut sein","Nie entschuldigen"], a:0}
+    ]
+  },
+  {
+    id:"schminken", title:"Schminken",
+    text:"Schminken kann Spaß machen, etwa zu Festen oder beim Spielen. Wichtig: Die Haut ist empfindlich. Benutze nur Produkte für Kinder und wasche sie ab, bevor du schlafen gehst. Teile Schminke nicht mit vielen Leuten. Schönheit kommt vor allem von innen: freundlich sein, lachen und helfen.",
+    questions:[
+      {q:"Wann kann Schminken Spaß machen?", opts:["Zu Festen","Beim Schlafen","Beim Rennen","Beim Zähneputzen"], a:0},
+      {q:"Wie ist die Haut?", opts:["Empfindlich","Hart wie Stein","Metallisch","Unsichtbar"], a:0},
+      {q:"Was soll man abends tun?", opts:["Schminke abwaschen","Mehr schminken","Nie Zähne putzen","Draußen schlafen"], a:0},
+      {q:"Was sollte man nicht teilen?", opts:["Schminke mit vielen Leuten","Freundlichkeit","Lachen","Bücher"], a:0},
+      {q:"Woher kommt Schönheit vor allem?", opts:["Von innen","Nur von Farbe","Von Schuhen","Von lauter Musik"], a:0}
+    ]
+  }
+];
+
+/* ========= STATE ========= */
+const state = { total:0, done:{}, per:{}, cur:null, qi:0, sel:null };
+
+/* ========= HELPERS ========= */
+const $=s=>document.querySelector(s);
+function show(e){$(e).hidden=false} function hide(e){$(e).hidden=true}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
+
+/* ========= HOME ========= */
+function renderHome(){
+  $('#scoreBadge').textContent=`Punkte: ${state.total}`;
+  const finished = Object.keys(state.done).length;
+  $('#progressText').textContent = `${finished} / ${TOPICS.length} Themen erledigt`;
+
+  const box = $('#topics'); box.innerHTML='';
+  TOPICS.forEach(t=>{
+    const played = !!state.done[t.id];
+    const el = document.createElement('div');
+    el.className = 'topic' + (played?' locked':'');
+    el.innerHTML = `<span class="badge">${played?'Erledigt':'Neu'}</span><h3>${t.title}</h3><button class="cta">Los geht’s</button>`;
+    if(!played) el.querySelector('.cta').addEventListener('click',()=>openTopic(t));
+    box.appendChild(el);
+  });
+
+  hide('#topicView'); hide('#quizView'); show('#home');
+}
+
+/* ========= TOPIC ========= */
+function openTopic(t){
+  state.cur = t; state.qi=0; state.sel=null;
+  $('#tTitle').textContent = t.title;
+  $('#tText').textContent = t.text;
+  hide('#home'); hide('#quizView'); show('#topicView');
+}
+$('#backBtn').addEventListener('click', renderHome);
+$('#startBtn').addEventListener('click', ()=>{
+  shuffle(state.cur.questions);
+  state.per[state.cur.id] = state.per[state.cur.id] ?? 0;
+  renderQ();
+  hide('#topicView'); show('#quizView');
+});
+
+/* ========= QUIZ ========= */
+function renderQ(){
+  const t = state.cur, q = t.questions[state.qi];
+  $('#topicScore').textContent = `Themenpunkte: ${state.per[t.id]}/5`;
+  $('#qProg').textContent = `Frage ${state.qi+1} / ${t.questions.length}`;
+  $('#qText').textContent = q.q;
+  $('#fb').textContent = '';
+  const box = $('#opts'); box.innerHTML='';
+  const order = q.opts.map((_,i)=>i); shuffle(order);
+  order.forEach(i=>{
+    const b=document.createElement('button');
+    b.className='opt'; b.textContent=q.opts[i];
+    b.onclick=()=>{state.sel=i;[...box.children].forEach(x=>x.classList.remove('selected'));b.classList.add('selected')};
+    box.appendChild(b);
+  });
+}
+$('#checkBtn').onclick=()=>{
+  const t=state.cur, q=t.questions[state.qi];
+  if(state.sel==null){$('#fb').textContent='Bitte wähle zuerst eine Antwort.';return;}
+  const ok = state.sel===q.a;
+  [...$('#opts').children].forEach(btn=>{
+    const isOk = (btn.textContent===q.opts[q.a]);
+    btn.classList.add(isOk?'correct':'incorrect'); btn.disabled=true;
+  });
+  if(ok && !q._c){ state.per[t.id]++; q._c=true; $('#fb').textContent='Richtig! 👍'; }
+  else if(!ok){ $('#fb').textContent='Nicht ganz. Lies den Text noch einmal.'; }
+  $('#topicScore').textContent = `Themenpunkte: ${state.per[t.id]}/5`;
+};
+$('#nextBtn').onclick=()=>{
+  const t=state.cur;
+  if(state.qi < t.questions.length-1){ state.qi++; state.sel=null; renderQ(); }
+  else{
+    state.done[t.id]=true;
+    state.total = Object.values(state.per).reduce((a,b)=>a+b,0);
+    renderHome();
+  }
+};
+
+/* ========= START ========= */
+renderHome();
+</script>
+</body>
+</html>
