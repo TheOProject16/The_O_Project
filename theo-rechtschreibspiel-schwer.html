@@ -404,24 +404,51 @@ function newRound(){
 }
 function check(){
   if(!state.theme || state.tokens.length===0 || state.locked) return;
-  const sel=new Set(state.selectedIdx), ans=new Set(state.answerIdx);
-  document.querySelectorAll('.token').forEach(sp=>{
-    const i=Number(sp.dataset.idx);
-    if(sel.has(i)&&ans.has(i)) sp.classList.add('good');
-    else if(sel.has(i)&&!ans.has(i)) sp.classList.add('bad');
-  });
-  const tp=[...sel].filter(i=>ans.has(i)).length;
-  const fp=[...sel].filter(i=>!ans.has(i)).length;
-  const fn=[...ans].filter(i=>!sel.has(i)).length;
-  const gained=Math.max(0,Math.min(5,tp-fp));
-  state.points+=gained; state.locked=true; state.round+=1; setProgress();
-  feedback.innerHTML=`✔️ Treffer: <strong>${tp}</strong> • ❌ Fehltreffer: <strong>${fp}</strong> • 🙈 Übersehen: <strong>${fn}</strong> → <strong>+${gained} Punkt${gained===1?'':'e'}</strong>`;
 
-  if(state.round===ROUNDS_PER_THEME){
-    const g=gradeFrom(state.points);
-    resultPoints.textContent=String(state.points);
-    resultGrade.textContent=String(g);
-    resultText.textContent=gradeText(g);
+  const sel = new Set(state.selectedIdx);
+  const ans = new Set(state.answerIdx);
+
+  // Durch alle Wörter laufen und markieren
+  document.querySelectorAll('.token').forEach(sp=>{
+    const i = Number(sp.dataset.idx);
+
+    if(sel.has(i) && ans.has(i)){
+      // richtig markiert
+      sp.classList.add('good');
+      sp.title = "Richtig markiert";
+    }
+    else if(sel.has(i) && !ans.has(i)){
+      // fälschlich markiert
+      sp.classList.add('bad');
+      sp.title = "Falsch markiert";
+    }
+    else if(!sel.has(i) && ans.has(i)){
+      // übersehen → gelb
+      sp.style.background = "rgba(255, 215, 0, 0.25)";
+      sp.style.borderColor = "#facc15";
+      sp.title = "Übersehener Fehler";
+    }
+  });
+
+  const tp = [...sel].filter(i => ans.has(i)).length;
+  const fp = [...sel].filter(i => !ans.has(i)).length;
+  const fn = [...ans].filter(i => !sel.has(i)).length;
+
+  let gained = Math.max(0, Math.min(5, tp - fp));
+  state.points += gained;
+  state.locked = true;
+  state.round += 1;
+  setProgress();
+
+  feedback.innerHTML = 
+    `✔️ Treffer: <strong>${tp}</strong> • ❌ Fehltreffer: <strong>${fp}</strong> • 🙈 Übersehen: <strong>${fn}</strong> → <strong>+${gained} Punkt${gained===1?'':'e'}</strong>`;
+
+  // Note am Ende
+  if(state.round === ROUNDS_PER_THEME){
+    const g = gradeFrom(state.points);
+    resultPoints.textContent = String(state.points);
+    resultGrade.textContent = String(g);
+    resultText.textContent = gradeText(g);
   }
 }
 function next(){
@@ -442,3 +469,4 @@ backBtn.addEventListener('click',()=>{ show('home'); resetState(true); });
 </script>
 </body>
 </html>
+
